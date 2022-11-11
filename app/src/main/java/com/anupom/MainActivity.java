@@ -21,6 +21,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -43,6 +50,7 @@ import com.anupom.cameraroll.R;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -303,7 +311,6 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 SimpleDateFormat mDateFormat = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US);
                 SimpleDateFormat dirDateFormat = new SimpleDateFormat("yyyyMMdd", Locale.US);
-                //File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName+"_"+mDateFormat.format(new Date())+ ".jpg");
 
                 File dirName = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "CameraRoll"+dirDateFormat.format(new Date()));
 
@@ -321,7 +328,9 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                             try {
-                                writeLocData(finalFile, Double.parseDouble(latitude), Double.parseDouble(longitude));
+                                if(writeGPSCoordinate(finalFile, latitude, longitude)) {
+                                    writeLocData(finalFile, Double.parseDouble(latitude), Double.parseDouble(longitude));
+                                }
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -509,6 +518,47 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "Getting GPS coordinate...", Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    // method to write the GPS coordinate on the image
+    private boolean writeGPSCoordinate(File fileName, String latitude, String longitude) {
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(fileName.getCanonicalPath());
+
+            android.graphics.Bitmap.Config bitmapConfig = bitmap.getConfig();
+
+            // set default bitmap config if none
+            if(bitmapConfig == null) {
+                bitmapConfig = android.graphics.Bitmap.Config.ARGB_8888;
+            }
+
+            // resource bitmaps are imutable, so we need to convert it to mutable one
+            bitmap = bitmap.copy(bitmapConfig, true);
+
+            FileOutputStream out = new FileOutputStream(fileName);
+
+            // NEWLY ADDED CODE STARTS HERE |
+            Canvas canvas = new Canvas(bitmap);
+
+            Paint paint = new Paint();
+            paint.setColor(Color.WHITE);    // Text Color
+            paint.setTextSize(40);          // Text Size
+
+            String coordinateValue = latitude+", "+longitude;   // prepare the coordinate string
+
+            canvas.drawBitmap(bitmap, 0, 0, paint);
+            canvas.drawText(coordinateValue, 20, bitmap.getHeight()-20, paint);
+
+            // NEWLY ADDED CODE ENDS HERE ]
+
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return true;
     }
 
 
